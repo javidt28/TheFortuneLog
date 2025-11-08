@@ -259,7 +259,7 @@ function App() {
 
         const initializeFirebaseSync = async () => {
             // Check if Firebase is available and configured
-            if (typeof firebase === 'undefined' || !isFirebaseReady || !db || !auth) {
+            if (typeof firebase === 'undefined' || !isFirebaseReady || !db) {
                 setSyncStatus('error');
                 showToast('Firebase not configured. Please check firebase-config.js');
                 setIsInitialized(true);
@@ -269,12 +269,8 @@ function App() {
             try {
                 setSyncStatus('loading');
                 
-                // Sign in anonymously
-                const userCredential = await auth.signInAnonymously();
-                const userId = userCredential.user.uid;
-                
-                // Load fortunes from Firestore
-                const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+                // Use shared collection for all fortunes (no user-specific path)
+                const fortunesRef = db.collection('fortunes');
                 
                 // Set up real-time listener for changes
                 unsubscribe = fortunesRef.onSnapshot((snapshot) => {
@@ -311,11 +307,14 @@ function App() {
     }, []);
 
     const saveToFirebase = async (fortunesArray) => {
-        if (!db || !auth || !auth.currentUser) return;
+        if (!db) {
+            console.error('Firebase not ready:', { db: !!db });
+            return;
+        }
         
         try {
-            const userId = auth.currentUser.uid;
-            const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+            // Use shared collection for all fortunes
+            const fortunesRef = db.collection('fortunes');
             const batch = db.batch();
             
             // Clear existing
@@ -332,9 +331,14 @@ function App() {
             });
             
             await batch.commit();
+            console.log('Successfully saved', fortunesArray.length, 'fortunes to Firebase');
         } catch (error) {
             console.error('Error saving to Firebase:', error);
-            showToast('Error saving to Firebase');
+            console.error('Error details:', {
+                code: error.code,
+                message: error.message
+            });
+            showToast(`Error saving to Firebase: ${error.message}`);
         }
     };
 
@@ -354,7 +358,12 @@ function App() {
         showToast('Fortune added successfully! 🍪');
         
         // Sync to Firebase
-        await saveToFirebase(updatedFortunes);
+        try {
+            await saveToFirebase(updatedFortunes);
+        } catch (error) {
+            console.error('Failed to save fortune:', error);
+            showToast('Fortune added locally but failed to sync');
+        }
     };
 
     const deleteFortune = async (id) => {

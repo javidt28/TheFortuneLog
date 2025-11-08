@@ -69,15 +69,17 @@ const firebaseConfig = {
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow anonymous users to read/write their own fortunes
-    match /users/{userId}/fortunes/{fortuneId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Allow anyone to read/write fortunes (shared collection)
+    match /fortunes/{fortuneId} {
+      allow read, write: if true;
     }
   }
 }
 ```
 
 3. Click **"Publish"**
+
+⚠️ **Note**: These rules allow anyone to read and write fortunes. This is intentional for a shared fortune log where everyone can see and add fortunes.
 
 ## Testing
 
@@ -88,16 +90,17 @@ service cloud.firestore {
 
 ## How It Works
 
-- **Anonymous Authentication**: Each browser gets a unique anonymous ID
-- **Real-time Sync**: Changes sync instantly across devices using the same browser
+- **Shared Collection**: All fortunes are stored in a shared `fortunes` collection
+- **Real-time Sync**: Changes sync instantly across all devices
+- **Public Access**: Anyone can view and add fortunes
 - **Offline Support**: Works offline, syncs when online (Firestore handles this automatically)
 - **Cloud-Only Storage**: All data is stored in Firebase Firestore (no localStorage)
 
 ## Important Notes
 
-⚠️ **Security**: The current setup uses anonymous auth. Each browser/device gets its own anonymous ID, so fortunes sync across tabs in the same browser but NOT across different browsers/devices automatically.
+⚠️ **Security**: The current setup allows public read/write access to all fortunes. Anyone with access to your Firebase project can view and modify fortunes. This is intentional for a shared fortune log.
 
-💡 **To sync across different devices**: You'd need to implement email/password auth or share the anonymous user ID (more advanced).
+💡 **For production use**: Consider adding rate limiting or authentication if you want to restrict access.
 
 ## Troubleshooting
 

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheFortuneLog - Track Your Fortune Cookie Fortunes</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel Standalone for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase Config (update with your credentials) -->
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // Toast Notification Component
+        function Toast({ message, onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    onClose();
+                }, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            return (
+                <div className="toast">
+                    <span>{message}</span>
+                    <button onClick={onClose} className="toast-close">×</button>
+                </div>
+            );
+        }
+
+        // Stat Card Component
+        function StatCard({ value, label, icon }) {
+            return (
+                <div className="stat-card">
+                    <div className="stat-icon">{icon}</div>
+                    <div className="stat-content">
+                        <div className="stat-value">{value}</div>
+                        <div className="stat-label">{label}</div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Stats Bar Component
+        function StatsBar({ fortunes }) {
+            const stats = useMemo(() => {
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+
+                const thisMonthFortunes = fortunes.filter(f => {
+                    const date = new Date(f.date);
+                    return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+                });
+
+                const thisYearFortunes = fortunes.filter(f => {
+                    const date = new Date(f.date);
+                    return date.getFullYear() === thisYear;
+                });
+
+                return {
+                    total: fortunes.length,
+                    thisMonth: thisMonthFortunes.length,
+                    thisYear: thisYearFortunes.length
+                };
+            }, [fortunes]);
+
+            return (
+                <div className="stats-bar">
+                    <StatCard value={stats.total} label="Total Fortunes" icon="🍪" />
+                    <StatCard value={stats.thisMonth} label="This Month" icon="📅" />
+                    <StatCard value={stats.thisYear} label="This Year" icon="✨" />
+                </div>
+            );
+        }
+
+        // Fortune Card Component
+        function FortuneCard({ fortune, onDelete }) {
+            const [isDeleting, setIsDeleting] = useState(false);
+
+            const handleDelete = () => {
+                if (window.confirm('Are you sure you want to delete this fortune?')) {
+                    setIsDeleting(true);
+                    setTimeout(() => onDelete(fortune.id), 300);
+                }
+            };
+
+            const date = new Date(fortune.date);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const formattedTime = date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            return (
+                <div className={`fortune-card ${isDeleting ? 'fade-out' : ''}`}>
+                    <div className="fortune-card-header">
+                        <div className="fortune-date">
+                            <span className="date-icon">📅</span>
+                            <span>{formattedDate} at {formattedTime}</span>
+                        </div>
+                        <button 
+                            className="delete-btn" 
+                            onClick={handleDelete}
+                            title="Delete fortune"
+                            aria-label="Delete fortune"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="fortune-text">"{fortune.text}"</div>
+                    <div className="fortune-quote-mark">❝</div>
+                </div>
+            );
+        }
+
+        // Fortune Form Component
+        function FortuneForm({ onAdd, onExport, onImport }) {
+            const [text, setText] = useState('');
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const fileInputRef = React.useRef(null);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const trimmedText = text.trim();
+                if (!trimmedText || isSubmitting) return;
+
+                setIsSubmitting(true);
+                onAdd(trimmedText);
+                setText('');
+                setTimeout(() => setIsSubmitting(false), 300);
+            };
+
+            const handleImport = () => {
+                fileInputRef.current?.click();
+            };
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    onImport(file);
+                    e.target.value = '';
+                }
+            };
+
+            return (
+                <div className="add-fortune-section">
+                    <div className="section-title">
+                        <h2>Add New Fortune</h2>
+                        <p className="section-subtitle">Capture your fortune cookie wisdom</p>
+                    </div>
+                    <form onSubmit={handleSubmit} className="fortune-form">
+                        <div className="textarea-wrapper">
+                            <textarea
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                placeholder="Enter your fortune cookie message..."
+                                rows="4"
+                                className="fortune-textarea"
+                                required
+                            />
+                            <div className="textarea-footer">
+                                <span className="char-count">{text.length} characters</span>
+                            </div>
+                        </div>
+                        <div className="form-actions">
+                            <button 
+                                type="submit" 
+                                className={`btn btn-primary ${isSubmitting ? 'submitting' : ''}`}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? 'Adding...' : '✨ Add Fortune'}
+                            </button>
+                            <div className="action-group">
+                                <button 
+                                    type="button" 
+                                    className="btn btn-secondary"
+                                    onClick={handleImport}
+                                >
+                                    📥 Import
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-secondary"
+                                    onClick={onExport}
+                                >
+                                    📤 Export
+                                </button>
+                            </div>
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".json"
+                            onChange={handleFileChange}
+                            style={{ display: 'none' }}
+                        />
+                    </form>
+                </div>
+            );
+        }
+
+        // Fortune List Component
+        function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
+            const filteredAndSorted = useMemo(() => {
+                let filtered = fortunes.filter(fortune =>
+                    fortune.text.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+
+                switch (sortBy) {
+                    case 'newest':
+                        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        break;
+                    case 'oldest':
+                        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        break;
+                    case 'alphabetical':
+                        filtered.sort((a, b) => a.text.localeCompare(b.text));
+                        break;
+                }
+
+                return filtered;
+            }, [fortunes, searchTerm, sortBy]);
+
+            if (filteredAndSorted.length === 0) {
+                return (
+                    <div className="empty-state">
+                        <div className="empty-icon">🍪</div>
+                        <p className="empty-text">
+                            {searchTerm 
+                                ? `No fortunes found matching "${searchTerm}"`
+                                : "No fortunes yet. Add your first one above!"
+                            }
+                        </p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="fortunes-list">
+                    {filteredAndSorted.map(fortune => (
+                        <FortuneCard
+                            key={fortune.id}
+                            fortune={fortune}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [fortunes, setFortunes] = useState(() => {
+                // Load from localStorage as fallback
+                const stored = localStorage.getItem('fortunes');
+                return stored ? JSON.parse(stored) : [];
+            });
+            const [searchTerm, setSearchTerm] = useState('');
+            const [sortBy, setSortBy] = useState('newest');
+            const [toast, setToast] = useState(null);
+            const [syncStatus, setSyncStatus] = useState('local'); // 'local', 'syncing', 'synced', 'error'
+
+            // Initialize Firebase sync
+            useEffect(() => {
+                // Check if Firebase is available and configured
+                if (typeof firebase !== 'undefined' && typeof isFirebaseReady !== 'undefined' && isFirebaseReady && db && auth) {
+                    initializeFirebaseSync();
+                } else {
+                    // Firebase not configured, use local storage only
+                    console.log('Firebase not configured. Using local storage only.');
+                    setSyncStatus('local');
+                }
+            }, []);
+
+            // Save to localStorage whenever fortunes change
+            useEffect(() => {
+                localStorage.setItem('fortunes', JSON.stringify(fortunes));
+            }, [fortunes]);
+
+            const initializeFirebaseSync = async () => {
+                try {
+                    setSyncStatus('syncing');
+                    
+                    // Sign in anonymously
+                    const userCredential = await auth.signInAnonymously();
+                    const userId = userCredential.user.uid;
+                    
+                    // Load fortunes from Firestore
+                    const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+                    const snapshot = await fortunesRef.get();
+                    
+                    if (!snapshot.empty) {
+                        // Merge cloud data with local fortunes
+                        const cloudFortunes = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            text: doc.data().text,
+                            date: doc.data().date
+                        }));
+                        
+                        // Merge with local (cloud takes priority for conflicts)
+                        const localFortunes = JSON.parse(localStorage.getItem('fortunes') || '[]');
+                        const merged = mergeFortunes(cloudFortunes, localFortunes);
+                        setFortunes(merged);
+                        
+                        // Save merged to Firebase
+                        await saveToFirebase(merged, userId);
+                    } else {
+                        // No cloud data, upload local if exists
+                        const localFortunes = JSON.parse(localStorage.getItem('fortunes') || '[]');
+                        if (localFortunes.length > 0) {
+                            await saveToFirebase(localFortunes, userId);
+                        }
+                    }
+                    
+                    // Set up real-time listener for changes from other devices
+                    fortunesRef.onSnapshot((snapshot) => {
+                        const cloudFortunes = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            text: doc.data().text,
+                            date: doc.data().date
+                        }));
+                        setFortunes(cloudFortunes);
+                        localStorage.setItem('fortunes', JSON.stringify(cloudFortunes));
+                        setSyncStatus('synced');
+                    });
+                    
+                    setSyncStatus('synced');
+                    showToast('Cloud sync enabled! ☁️');
+                } catch (error) {
+                    console.error('Firebase sync error:', error);
+                    setSyncStatus('error');
+                    showToast('Cloud sync failed. Using local storage.');
+                }
+            };
+
+            const mergeFortunes = (cloud, local) => {
+                const allFortunes = [...cloud, ...local];
+                const unique = {};
+                allFortunes.forEach(f => {
+                    if (!unique[f.id] || new Date(f.date) > new Date(unique[f.id].date)) {
+                        unique[f.id] = f;
+                    }
+                });
+                return Object.values(unique);
+            };
+
+            const saveToFirebase = async (fortunesArray, userId) => {
+                if (!db || !auth) return;
+                
+                try {
+                    const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+                    const batch = db.batch();
+                    
+                    // Clear existing
+                    const snapshot = await fortunesRef.get();
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    
+                    // Add all fortunes
+                    fortunesArray.forEach(fortune => {
+                        const docRef = fortunesRef.doc(String(fortune.id));
+                        batch.set(docRef, {
+                            text: fortune.text,
+                            date: fortune.date
+                        });
+                    });
+                    
+                    await batch.commit();
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                }
+            };
+
+            const showToast = (message) => {
+                setToast(message);
+            };
+
+            const addFortune = async (text) => {
+                const newFortune = {
+                    id: Date.now().toString(),
+                    text: text,
+                    date: new Date().toISOString()
+                };
+                
+                setFortunes(prev => [...prev, newFortune]);
+                showToast('Fortune added successfully! 🍪');
+                
+                // Sync to Firebase
+                if (syncStatus === 'synced' && db && auth && auth.currentUser) {
+                    await saveToFirebase([...fortunes, newFortune], auth.currentUser.uid);
+                }
+            };
+
+            const deleteFortune = async (id) => {
+                setFortunes(prev => prev.filter(f => f.id !== id));
+                showToast('Fortune deleted');
+                
+                // Sync to Firebase
+                if (syncStatus === 'synced' && db && auth && auth.currentUser) {
+                    const updatedFortunes = fortunes.filter(f => f.id !== id);
+                    await saveToFirebase(updatedFortunes, auth.currentUser.uid);
+                }
+            };
+
+            const exportFortunes = () => {
+                const dataStr = JSON.stringify(fortunes, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `fortunes-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                showToast('Fortunes exported successfully!');
+            };
+
+            const importFortunes = async (file) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            const existingIds = new Set(fortunes.map(f => f.id));
+                            const newFortunes = imported.filter(f => !existingIds.has(String(f.id)));
+
+                            if (newFortunes.length > 0) {
+                                const updatedFortunes = [...fortunes, ...newFortunes];
+                                setFortunes(updatedFortunes);
+                                showToast(`Imported ${newFortunes.length} fortune(s)!`);
+                                
+                                // Sync to Firebase
+                                if (syncStatus === 'synced' && db && auth && auth.currentUser) {
+                                    await saveToFirebase(updatedFortunes, auth.currentUser.uid);
+                                }
+                            } else {
+                                showToast('No new fortunes to import');
+                            }
+                        } else {
+                            throw new Error('Invalid format');
+                        }
+                    } catch (error) {
+                        showToast('Error importing file. Please check the format.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div className="app">
+                    <header className="app-header">
+                        <div className="header-content">
+                            <h1 className="app-title">
+                                <span className="title-icon">🍪</span>
+                                TheFortuneLog
+                            </h1>
+                            <p className="app-subtitle">Track your fortune cookie fortunes</p>
+                            <div className="sync-status">
+                                {syncStatus === 'synced' && <span className="sync-badge synced">☁️ Synced</span>}
+                                {syncStatus === 'syncing' && <span className="sync-badge syncing">⏳ Syncing...</span>}
+                                {syncStatus === 'local' && <span className="sync-badge local">💾 Local Only</span>}
+                                {syncStatus === 'error' && <span className="sync-badge error">⚠️ Sync Error</span>}
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="container">
+                        <StatsBar fortunes={fortunes} />
+
+                        <div className="main-content">
+                            <FortuneForm
+                                onAdd={addFortune}
+                                onExport={exportFortunes}
+                                onImport={importFortunes}
+                            />
+
+                            <div className="fortunes-section">
+                                <div className="section-header">
+                                    <div className="section-title">
+                                        <h2>Your Fortunes</h2>
+                                        <p className="section-subtitle">{fortunes.length} fortune{fortunes.length !== 1 ? 's' : ''} collected</p>
+                                    </div>
+                                    <div className="controls">
+                                        <div className="search-wrapper">
+                                            <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                placeholder="Search fortunes..."
+                                                className="search-input"
+                                            />
+                                        </div>
+                                        <select
+                                            value={sortBy}
+                                            onChange={(e) => setSortBy(e.target.value)}
+                                            className="sort-select"
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="oldest">Oldest First</option>
+                                            <option value="alphabetical">A-Z</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <FortuneList
+                                    fortunes={fortunes}
+                                    searchTerm={searchTerm}
+                                    sortBy={sortBy}
+                                    onDelete={deleteFortune}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {toast && (
+                        <Toast
+                            message={toast}
+                            onClose={() => setToast(null)}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // Render the app
+        const rootElement = document.getElementById("root");
+        if (rootElement) {
+            try {
+                if (ReactDOM.createRoot) {
+                    const root = ReactDOM.createRoot(rootElement);
+                    root.render(<App />);
+                } else {
+                    ReactDOM.render(<App />, rootElement);
+                }
+            } catch (error) {
+                console.error('Error rendering app:', error);
+                rootElement.innerHTML = `
+                    <div style="text-align: center; padding: 50px; color: white;">
+                        <h2>Error Loading App</h2>
+                        <p>${error.message}</p>
+                        <p style="font-size: 12px; margin-top: 20px;">Check the browser console for details.</p>
+                    </div>
+                `;
+            }
+        } else {
+            console.error('Root element not found!');
+        }

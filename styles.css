@@ -714,6 +714,7 @@ body {
     margin-top: var(--space-2xl);
     color: var(--text-secondary);
     font-size: 0.875rem;
+    width: 100%;
 }
 
 .app-footer p {
@@ -722,6 +723,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--space-xs);
+    flex-wrap: wrap;
 }
 
 .app-footer .copyright {
@@ -806,5 +808,20 @@ body {
         right: var(--space-md);
         left: var(--space-md);
         max-width: none;
+    }
+    
+    .app-footer {
+        padding: var(--space-lg) var(--space-md);
+        margin-top: var(--space-xl);
+    }
+    
+    .app-footer p {
+        flex-direction: column;
+        gap: var(--space-xs);
+        text-align: center;
+    }
+    
+    .app-footer .copyright {
+        margin-top: var(--space-xs);
     }
 }

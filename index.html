@@ -289,8 +289,9 @@
         }
 
         // Fortune Form Component (Modal)
-        function FortuneForm({ onAdd, onClose }) {
+        function FortuneForm({ onAdd, onClose, defaultAuthor }) {
             const [text, setText] = useState('');
+            const [author, setAuthor] = useState(defaultAuthor || '');
             const [isSubmitting, setIsSubmitting] = useState(false);
             const textareaRef = React.useRef(null);
 
@@ -306,8 +307,9 @@
                 if (!trimmedText || isSubmitting) return;
 
                 setIsSubmitting(true);
-                onAdd(trimmedText);
+                onAdd(trimmedText, author.trim() || null);
                 setText('');
+                setAuthor(defaultAuthor || '');
                 setTimeout(() => {
                     setIsSubmitting(false);
                     onClose();
@@ -341,6 +343,20 @@
                                 className="fortune-textarea"
                                 required
                             />
+                            <div className="form-field">
+                                <label htmlFor="fortune-author" className="form-label">
+                                    Your Name or Initials (optional)
+                                </label>
+                                <input
+                                    id="fortune-author"
+                                    type="text"
+                                    value={author}
+                                    onChange={(e) => setAuthor(e.target.value)}
+                                    placeholder="e.g., John or JD"
+                                    className="fortune-author-input"
+                                    maxLength={20}
+                                />
+                            </div>
                             <div className="form-footer">
                                 <button 
                                     type="button"
@@ -476,7 +492,7 @@
                 setShowNameModal(false);
             };
 
-            const addFortune = async (text) => {
+            const addFortune = async (text, author) => {
                 // Ensure text ends with a period
                 let formattedText = text.toUpperCase().trim();
                 if (formattedText && !formattedText.match(/[.!?]$/)) {
@@ -487,7 +503,7 @@
                     id: Date.now().toString(),
                     text: formattedText,
                     date: new Date().toISOString(),
-                    author: userName || null
+                    author: author || userName || null
                 };
                 
                 const updatedFortunes = [...fortunes, newFortune];
@@ -615,6 +631,7 @@
                         <FortuneForm
                             onAdd={addFortune}
                             onClose={() => setShowAddModal(false)}
+                            defaultAuthor={userName}
                         />
                     )}
                 <div className="app">

@@ -575,11 +575,14 @@
                                 <h1 className="app-title">
                                     TheFortuneLog
                                 </h1>
-                                <p className="app-subtitle">Loading...</p>
                             </div>
                         </header>
-                        <div className="container" style={{ textAlign: 'center', padding: '50px', color: 'white' }}>
-                            <p>Connecting to Firebase...</p>
+                        <div className="loading-container">
+                            <div className="loading-spinner">
+                                <div className="spinner-ring"></div>
+                                <div className="spinner-ring"></div>
+                                <div className="spinner-ring"></div>
+                            </div>
                         </div>
                     </div>
                 );
@@ -633,7 +636,6 @@
                         
                         <div className="fortunes-header">
                             <h2>Fortunes</h2>
-                            <div className="fortunes-count">{fortunes.length} fortune{fortunes.length !== 1 ? 's' : ''}</div>
                         </div>
 
                         {fortunes.length === 0 ? (
@@ -671,6 +673,11 @@
                     >
                         <span className="add-button-icon">+</span>
                     </button>
+
+                    <footer className="app-footer">
+                        <p>Created with <span className="heart">❤️</span> by <a href="https://www.linkedin.com/in/javidt28/" target="_blank" rel="noopener noreferrer" className="footer-link">Doc</a></p>
+                        <p className="copyright">© {new Date().getFullYear()} TheFortuneLog. All rights reserved.</p>
+                    </footer>
 
                     {toast && (
                         <Toast

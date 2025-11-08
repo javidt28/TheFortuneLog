@@ -832,12 +832,15 @@ body {
     }
     
     .app-footer p {
-        flex-direction: column;
+        flex-direction: row;
         gap: var(--space-xs);
         text-align: center;
+        white-space: nowrap;
+        font-size: 0.8rem;
     }
     
     .app-footer .copyright {
         margin-top: var(--space-xs);
+        white-space: nowrap;
     }
 }

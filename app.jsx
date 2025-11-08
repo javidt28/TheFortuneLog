@@ -1,4 +1,54 @@
-const { useState, useEffect, useMemo } = React;
+// Name Modal Component
+function NameModal({ onConfirm, onSkip }) {
+    const [name, setName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (name.trim()) {
+            setIsSubmitting(true);
+            onConfirm(name.trim());
+        }
+    };
+
+    return (
+        <div className="name-modal-overlay">
+            <div className="name-modal">
+                <div className="name-modal-header">
+                    <h2 className="name-modal-title">Welcome to TheFortuneLog!</h2>
+                    <p className="name-modal-subtitle">Enter your name to personalize your fortunes</p>
+                </div>
+                <form onSubmit={handleSubmit} className="name-modal-form">
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Your name..."
+                        className="name-input"
+                        autoFocus
+                        maxLength={50}
+                    />
+                    <div className="name-modal-actions">
+                        <button
+                            type="button"
+                            onClick={onSkip}
+                            className="btn btn-secondary name-skip-btn"
+                        >
+                            Skip
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn btn-primary name-submit-btn"
+                            disabled={!name.trim() || isSubmitting}
+                        >
+                            Continue
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
 
 // Toast Notification Component
 function Toast({ message, onClose }) {
@@ -56,7 +106,7 @@ function StatsBar({ fortunes }) {
 
     return (
         <div className="stats-bar">
-            <StatCard value={stats.total} label="Total Fortunes" icon="🍪" />
+            <StatCard value={stats.total} label="Total Fortunes" icon="" />
             <StatCard value={stats.thisMonth} label="This Month" icon="📅" />
             <StatCard value={stats.thisYear} label="This Year" icon="✨" />
         </div>
@@ -64,21 +114,12 @@ function StatsBar({ fortunes }) {
 }
 
 // Fortune Card Component
-function FortuneCard({ fortune, onDelete }) {
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleDelete = () => {
-        if (window.confirm('Are you sure you want to delete this fortune?')) {
-            setIsDeleting(true);
-            setTimeout(() => onDelete(fortune.id), 300);
-        }
-    };
-
+function FortuneCard({ fortune, duplicateCount, style }) {
     const date = new Date(fortune.date);
     const formattedDate = date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     });
     const formattedTime = date.toLocaleTimeString('en-US', {
         hour: '2-digit',
@@ -86,34 +127,41 @@ function FortuneCard({ fortune, onDelete }) {
     });
 
     return (
-        <div className={`fortune-card ${isDeleting ? 'fade-out' : ''}`}>
-            <div className="fortune-card-header">
-                <div className="fortune-date">
-                    <span className="date-icon">📅</span>
-                    <span>{formattedDate} at {formattedTime}</span>
+        <div className={`fortune-card ${duplicateCount > 1 ? 'duplicate' : ''}`} style={style}>
+            {duplicateCount > 1 && (
+                <div className="duplicate-badge">
+                    <span className="duplicate-icon">🔄</span>
+                    <span className="duplicate-text">×{duplicateCount}</span>
                 </div>
-                <button 
-                    className="delete-btn" 
-                    onClick={handleDelete}
-                    title="Delete fortune"
-                    aria-label="Delete fortune"
-                >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                </button>
+            )}
+            <div className="fortune-card-content">
+                <div className="fortune-text-wrapper">
+                    <div className="fortune-text">{fortune.text}</div>
+                </div>
+                <div className="fortune-footer">
+                    <div className="fortune-meta">
+                        <div className="fortune-date">
+                            <span>{formattedDate}</span>
+                            <span className="time-separator">•</span>
+                            <span>{formattedTime}</span>
+                        </div>
+                        {fortune.author && (
+                            <div className="fortune-author">
+                                <span className="author-label">by</span>
+                                <span className="author-name">{fortune.author}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-            <div className="fortune-text">"{fortune.text}"</div>
-            <div className="fortune-quote-mark">❝</div>
         </div>
     );
 }
 
 // Fortune Form Component
-function FortuneForm({ onAdd, onExport, onImport }) {
+function FortuneForm({ onAdd }) {
     const [text, setText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const fileInputRef = React.useRef(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -124,18 +172,6 @@ function FortuneForm({ onAdd, onExport, onImport }) {
         onAdd(trimmedText);
         setText('');
         setTimeout(() => setIsSubmitting(false), 300);
-    };
-
-    const handleImport = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            onImport(file);
-            e.target.value = ''; // Reset input
-        }
     };
 
     return (
@@ -164,39 +200,16 @@ function FortuneForm({ onAdd, onExport, onImport }) {
                         className={`btn btn-primary ${isSubmitting ? 'submitting' : ''}`}
                         disabled={isSubmitting}
                     >
-                        {isSubmitting ? 'Adding...' : '✨ Add Fortune'}
+                        {isSubmitting ? 'Adding...' : '🥠 Add Fortune'}
                     </button>
-                    <div className="action-group">
-                        <button 
-                            type="button" 
-                            className="btn btn-secondary"
-                            onClick={handleImport}
-                        >
-                            📥 Import
-                        </button>
-                        <button 
-                            type="button" 
-                            className="btn btn-secondary"
-                            onClick={onExport}
-                        >
-                            📤 Export
-                        </button>
-                    </div>
                 </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                />
             </form>
         </div>
     );
 }
 
 // Fortune List Component
-function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
+function FortuneList({ fortunes, searchTerm, sortBy }) {
     const filteredAndSorted = useMemo(() => {
         let filtered = fortunes.filter(fortune =>
             fortune.text.toLowerCase().includes(searchTerm.toLowerCase())
@@ -217,10 +230,20 @@ function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
         return filtered;
     }, [fortunes, searchTerm, sortBy]);
 
+    // Calculate duplicate counts for each fortune text
+    const duplicateCounts = useMemo(() => {
+        const counts = {};
+        fortunes.forEach(fortune => {
+            const text = fortune.text.toLowerCase().trim();
+            counts[text] = (counts[text] || 0) + 1;
+        });
+        return counts;
+    }, [fortunes]);
+
     if (filteredAndSorted.length === 0) {
         return (
             <div className="empty-state">
-                <div className="empty-icon">🍪</div>
+                <div className="empty-icon"></div>
                 <p className="empty-text">
                     {searchTerm 
                         ? `No fortunes found matching "${searchTerm}"`
@@ -233,13 +256,17 @@ function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
 
     return (
         <div className="fortunes-list">
-            {filteredAndSorted.map(fortune => (
-                <FortuneCard
-                    key={fortune.id}
-                    fortune={fortune}
-                    onDelete={onDelete}
-                />
-            ))}
+            {filteredAndSorted.map((fortune, index) => {
+                const duplicateCount = duplicateCounts[fortune.text.toLowerCase().trim()] || 1;
+                return (
+                    <FortuneCard
+                        key={fortune.id}
+                        fortune={fortune}
+                        duplicateCount={duplicateCount}
+                        style={{ '--delay': index }}
+                    />
+                );
+            })}
         </div>
     );
 }
@@ -252,6 +279,12 @@ function App() {
     const [toast, setToast] = useState(null);
     const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error'
     const [isInitialized, setIsInitialized] = useState(false);
+    const [userName, setUserName] = useState(() => {
+        return localStorage.getItem('fortuneUserName') || '';
+    });
+    const [showNameModal, setShowNameModal] = useState(() => {
+        return !localStorage.getItem('fortuneUserNameSet');
+    });
 
     // Initialize Firebase sync on mount
     useEffect(() => {
@@ -277,7 +310,8 @@ function App() {
                     const cloudFortunes = snapshot.docs.map(doc => ({
                         id: doc.id,
                         text: doc.data().text,
-                        date: doc.data().date
+                        date: doc.data().date,
+                        author: doc.data().author || null
                     }));
                     setFortunes(cloudFortunes);
                     setSyncStatus('synced');
@@ -326,7 +360,8 @@ function App() {
                 const docRef = fortunesRef.doc(String(fortune.id));
                 batch.set(docRef, {
                     text: fortune.text,
-                    date: fortune.date
+                    date: fortune.date,
+                    author: fortune.author || null
                 });
             });
             
@@ -346,16 +381,36 @@ function App() {
         setToast(message);
     };
 
+    const handleNameConfirm = (name) => {
+        setUserName(name);
+        localStorage.setItem('fortuneUserName', name);
+        localStorage.setItem('fortuneUserNameSet', 'true');
+        setShowNameModal(false);
+        showToast(`Welcome, ${name}! 🎉`);
+    };
+
+    const handleNameSkip = () => {
+        localStorage.setItem('fortuneUserNameSet', 'true');
+        setShowNameModal(false);
+    };
+
     const addFortune = async (text) => {
+        // Ensure text ends with a period
+        let formattedText = text.toUpperCase().trim();
+        if (formattedText && !formattedText.match(/[.!?]$/)) {
+            formattedText += '.';
+        }
+        
         const newFortune = {
             id: Date.now().toString(),
-            text: text.toUpperCase(),
-            date: new Date().toISOString()
+            text: formattedText,
+            date: new Date().toISOString(),
+            author: userName || null
         };
         
         const updatedFortunes = [...fortunes, newFortune];
         setFortunes(updatedFortunes);
-        showToast('Fortune added successfully! 🍪');
+                showToast('Fortune added successfully!');
         
         // Sync to Firebase
         try {
@@ -400,7 +455,14 @@ function App() {
                         .filter(f => !existingIds.has(String(f.id)))
                         .map(f => ({
                             ...f,
-                            text: f.text.toUpperCase()
+                            text: (() => {
+                                let text = f.text.toUpperCase().trim();
+                                if (text && !text.match(/[.!?]$/)) {
+                                    text += '.';
+                                }
+                                return text;
+                            })(),
+                            author: f.author || userName || null
                         }));
 
                     if (newFortunes.length > 0) {
@@ -429,7 +491,6 @@ function App() {
                 <header className="app-header">
                     <div className="header-content">
                         <h1 className="app-title">
-                            <span className="title-icon">🍪</span>
                             TheFortuneLog
                         </h1>
                         <p className="app-subtitle">Loading...</p>
@@ -443,19 +504,20 @@ function App() {
     }
 
     return (
+        <>
+            {showNameModal && (
+                <NameModal
+                    onConfirm={handleNameConfirm}
+                    onSkip={handleNameSkip}
+                />
+            )}
         <div className="app">
             <header className="app-header">
                 <div className="header-content">
                     <h1 className="app-title">
-                        <span className="title-icon">🍪</span>
                         TheFortuneLog
                     </h1>
                     <p className="app-subtitle">Track your fortune cookie fortunes</p>
-                    <div className="sync-status">
-                        {syncStatus === 'synced' && <span className="sync-badge synced">☁️ Synced</span>}
-                        {syncStatus === 'loading' && <span className="sync-badge syncing">⏳ Syncing...</span>}
-                        {syncStatus === 'error' && <span className="sync-badge error">⚠️ Sync Error</span>}
-                    </div>
                 </div>
             </header>
 
@@ -465,8 +527,6 @@ function App() {
                 <div className="main-content">
                     <FortuneForm
                         onAdd={addFortune}
-                        onExport={exportFortunes}
-                        onImport={importFortunes}
                     />
 
                     <div className="fortunes-section">
@@ -503,7 +563,6 @@ function App() {
                             fortunes={fortunes}
                             searchTerm={searchTerm}
                             sortBy={sortBy}
-                            onDelete={deleteFortune}
                         />
                     </div>
                 </div>
@@ -516,6 +575,7 @@ function App() {
                 />
             )}
         </div>
+        </>
     );
 }
 

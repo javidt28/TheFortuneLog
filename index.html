@@ -22,10 +22,213 @@
     <script src="firebase-config.js"></script>
 </head>
 <body>
+    <canvas id="canvas"></canvas>
     <div id="root"></div>
+    
+    <script>
+        // Animated Fortune Cookie Background
+        (function() {
+            var canvas = document.querySelector("#canvas");
+            if (!canvas) return;
+            
+            var context = canvas.getContext("2d");
+            var numShapes = 25;
+            var shapes = [];
+            var tau = Math.PI * 2;
+            var vw = 0;
+            var vh = 0;
+            
+            // Fortune cookie shapes as simplified paths
+            var cookieShapes = [
+                // Shape 1 - Crescent
+                function(ctx, x, y, scale) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 40 * scale, 0.3 * Math.PI, 1.7 * Math.PI);
+                    ctx.arc(x + 20 * scale, y, 30 * scale, 1.7 * Math.PI, 0.3 * Math.PI, true);
+                    ctx.closePath();
+                },
+                // Shape 2 - Open cookie
+                function(ctx, x, y, scale) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 45 * scale, 0.2 * Math.PI, 1.8 * Math.PI);
+                    ctx.arc(x + 25 * scale, y, 35 * scale, 1.8 * Math.PI, 0.2 * Math.PI, true);
+                    ctx.closePath();
+                },
+                // Shape 3 - Side view
+                function(ctx, x, y, scale) {
+                    ctx.beginPath();
+                    ctx.ellipse(x, y, 50 * scale, 30 * scale, 0.3, 0, tau);
+                    ctx.closePath();
+                },
+                // Shape 4 - Narrow crescent
+                function(ctx, x, y, scale) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 35 * scale, 0.4 * Math.PI, 1.6 * Math.PI);
+                    ctx.arc(x + 15 * scale, y, 25 * scale, 1.6 * Math.PI, 0.4 * Math.PI, true);
+                    ctx.closePath();
+                },
+                // Shape 5 - Wide open
+                function(ctx, x, y, scale) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 42 * scale, 0.1 * Math.PI, 1.9 * Math.PI);
+                    ctx.arc(x + 30 * scale, y, 38 * scale, 1.9 * Math.PI, 0.1 * Math.PI, true);
+                    ctx.closePath();
+                }
+            ];
+            
+            function random(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+            
+            function createShape() {
+                return {
+                    x: random(-100, vw + 100),
+                    y: random(-100, vh + 100),
+                    vx: random(-0.8, 0.8),
+                    vy: random(-0.8, 0.8),
+                    angle: random(0, tau),
+                    rotationSpeed: random(-0.03, 0.03),
+                    scale: random(0.4, 1.0),
+                    shapeIndex: Math.floor(random(0, cookieShapes.length)),
+                    hue: random(120, 160),
+                    saturation: random(50, 70),
+                    lightness: random(40, 60),
+                    opacity: random(0.3, 0.5),
+                    shapeChangeTimer: random(80, 150)
+                };
+            }
+            
+            function resize() {
+                vw = canvas.width = window.innerWidth;
+                vh = canvas.height = window.innerHeight;
+            }
+            
+            function init() {
+                resize();
+                shapes = [];
+                for (var i = 0; i < numShapes; i++) {
+                    shapes.push(createShape());
+                }
+            }
+            
+            function update() {
+                for (var i = 0; i < shapes.length; i++) {
+                    var shape = shapes[i];
+                    
+                    // Update position
+                    shape.x += shape.vx;
+                    shape.y += shape.vy;
+                    shape.angle += shape.rotationSpeed;
+                    
+                    // Change shape periodically
+                    shape.shapeChangeTimer--;
+                    if (shape.shapeChangeTimer <= 0) {
+                        shape.shapeIndex = Math.floor(random(0, cookieShapes.length));
+                        shape.shapeChangeTimer = random(100, 200);
+                    }
+                    
+                    // Wrap around edges
+                    if (shape.x < -150) shape.x = vw + 150;
+                    if (shape.x > vw + 150) shape.x = -150;
+                    if (shape.y < -150) shape.y = vh + 150;
+                    if (shape.y > vh + 150) shape.y = -150;
+                }
+            }
+            
+            function render() {
+                context.clearRect(0, 0, vw, vh);
+                context.globalCompositeOperation = "screen";
+                
+                for (var i = 0; i < shapes.length; i++) {
+                    var shape = shapes[i];
+                    var shapeFunc = cookieShapes[shape.shapeIndex];
+                    
+                    context.save();
+                    context.translate(shape.x, shape.y);
+                    context.rotate(shape.angle);
+                    
+                    // Draw cookie shape
+                    shapeFunc(context, 0, 0, shape.scale);
+                    
+                    // Fill with green color
+                    context.fillStyle = `hsla(${shape.hue}, ${shape.saturation}%, ${shape.lightness}%, ${shape.opacity})`;
+                    context.fill();
+                    
+                    // Add subtle stroke
+                    context.strokeStyle = `hsla(${shape.hue}, ${shape.saturation}%, ${shape.lightness + 10}%, ${shape.opacity * 0.8})`;
+                    context.lineWidth = 1.5;
+                    context.stroke();
+                    
+                    context.restore();
+                }
+            }
+            
+            function animate() {
+                update();
+                render();
+                requestAnimationFrame(animate);
+            }
+            
+            init();
+            animate();
+            window.addEventListener("resize", init);
+        })();
+    </script>
     
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
+
+        // Name Modal Component
+        function NameModal({ onConfirm, onSkip }) {
+            const [name, setName] = useState('');
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (name.trim()) {
+                    setIsSubmitting(true);
+                    onConfirm(name.trim());
+                }
+            };
+
+            return (
+                <div className="name-modal-overlay">
+                    <div className="name-modal">
+                        <div className="name-modal-header">
+                            <h2 className="name-modal-title">Welcome to TheFortuneLog!</h2>
+                            <p className="name-modal-subtitle">Enter your name to personalize your fortunes</p>
+                        </div>
+                        <form onSubmit={handleSubmit} className="name-modal-form">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Your name..."
+                                className="name-input"
+                                autoFocus
+                                maxLength={50}
+                            />
+                            <div className="name-modal-actions">
+                                <button
+                                    type="button"
+                                    onClick={onSkip}
+                                    className="btn btn-secondary name-skip-btn"
+                                >
+                                    Skip
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary name-submit-btn"
+                                    disabled={!name.trim() || isSubmitting}
+                                >
+                                    Continue
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
 
         // Toast Notification Component
         function Toast({ message, onClose }) {
@@ -83,7 +286,7 @@
 
             return (
                 <div className="stats-bar">
-                    <StatCard value={stats.total} label="Total Fortunes" icon="🍪" />
+                    <StatCard value={stats.total} label="Total Fortunes" icon="" />
                     <StatCard value={stats.thisMonth} label="This Month" icon="📅" />
                     <StatCard value={stats.thisYear} label="This Year" icon="✨" />
                 </div>
@@ -91,21 +294,12 @@
         }
 
         // Fortune Card Component
-        function FortuneCard({ fortune, onDelete }) {
-            const [isDeleting, setIsDeleting] = useState(false);
-
-            const handleDelete = () => {
-                if (window.confirm('Are you sure you want to delete this fortune?')) {
-                    setIsDeleting(true);
-                    setTimeout(() => onDelete(fortune.id), 300);
-                }
-            };
-
+        function FortuneCard({ fortune, duplicateCount, style }) {
             const date = new Date(fortune.date);
             const formattedDate = date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                month: 'short',
+                day: 'numeric',
+                year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
             });
             const formattedTime = date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
@@ -113,34 +307,41 @@
             });
 
             return (
-                <div className={`fortune-card ${isDeleting ? 'fade-out' : ''}`}>
-                    <div className="fortune-card-header">
-                        <div className="fortune-date">
-                            <span className="date-icon">📅</span>
-                            <span>{formattedDate} at {formattedTime}</span>
+                <div className={`fortune-card ${duplicateCount > 1 ? 'duplicate' : ''}`} style={style}>
+                    {duplicateCount > 1 && (
+                        <div className="duplicate-badge">
+                            <span className="duplicate-icon">🔄</span>
+                            <span className="duplicate-text">×{duplicateCount}</span>
                         </div>
-                        <button 
-                            className="delete-btn" 
-                            onClick={handleDelete}
-                            title="Delete fortune"
-                            aria-label="Delete fortune"
-                        >
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            </svg>
-                        </button>
+                    )}
+                    <div className="fortune-card-content">
+                        <div className="fortune-text-wrapper">
+                            <div className="fortune-text">{fortune.text}</div>
+                        </div>
+                        <div className="fortune-footer">
+                            <div className="fortune-meta">
+                                <div className="fortune-date">
+                                    <span>{formattedDate}</span>
+                                    <span className="time-separator">•</span>
+                                    <span>{formattedTime}</span>
+                                </div>
+                                {fortune.author && (
+                                    <div className="fortune-author">
+                                        <span className="author-label">by</span>
+                                        <span className="author-name">{fortune.author}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <div className="fortune-text">"{fortune.text}"</div>
-                    <div className="fortune-quote-mark">❝</div>
                 </div>
             );
         }
 
         // Fortune Form Component
-        function FortuneForm({ onAdd, onExport, onImport }) {
+        function FortuneForm({ onAdd }) {
             const [text, setText] = useState('');
             const [isSubmitting, setIsSubmitting] = useState(false);
-            const fileInputRef = React.useRef(null);
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -151,18 +352,6 @@
                 onAdd(trimmedText);
                 setText('');
                 setTimeout(() => setIsSubmitting(false), 300);
-            };
-
-            const handleImport = () => {
-                fileInputRef.current?.click();
-            };
-
-            const handleFileChange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    onImport(file);
-                    e.target.value = '';
-                }
             };
 
             return (
@@ -191,39 +380,16 @@
                                 className={`btn btn-primary ${isSubmitting ? 'submitting' : ''}`}
                                 disabled={isSubmitting}
                             >
-                                {isSubmitting ? 'Adding...' : '✨ Add Fortune'}
+                                {isSubmitting ? 'Adding...' : '🥠 Add Fortune'}
                             </button>
-                            <div className="action-group">
-                                <button 
-                                    type="button" 
-                                    className="btn btn-secondary"
-                                    onClick={handleImport}
-                                >
-                                    📥 Import
-                                </button>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-secondary"
-                                    onClick={onExport}
-                                >
-                                    📤 Export
-                                </button>
-                            </div>
                         </div>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".json"
-                            onChange={handleFileChange}
-                            style={{ display: 'none' }}
-                        />
                     </form>
                 </div>
             );
         }
 
         // Fortune List Component
-        function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
+        function FortuneList({ fortunes, searchTerm, sortBy }) {
             const filteredAndSorted = useMemo(() => {
                 let filtered = fortunes.filter(fortune =>
                     fortune.text.toLowerCase().includes(searchTerm.toLowerCase())
@@ -244,10 +410,20 @@
                 return filtered;
             }, [fortunes, searchTerm, sortBy]);
 
+            // Calculate duplicate counts for each fortune text
+            const duplicateCounts = useMemo(() => {
+                const counts = {};
+                fortunes.forEach(fortune => {
+                    const text = fortune.text.toLowerCase().trim();
+                    counts[text] = (counts[text] || 0) + 1;
+                });
+                return counts;
+            }, [fortunes]);
+
             if (filteredAndSorted.length === 0) {
                 return (
                     <div className="empty-state">
-                        <div className="empty-icon">🍪</div>
+                        <div className="empty-icon"></div>
                         <p className="empty-text">
                             {searchTerm 
                                 ? `No fortunes found matching "${searchTerm}"`
@@ -260,13 +436,20 @@
 
             return (
                 <div className="fortunes-list">
-                    {filteredAndSorted.map(fortune => (
-                        <FortuneCard
-                            key={fortune.id}
-                            fortune={fortune}
-                            onDelete={onDelete}
-                        />
-                    ))}
+                    {filteredAndSorted.map((fortune, index) => {
+                        const duplicateCount = duplicateCounts[fortune.text.toLowerCase().trim()] || 1;
+                        return (
+                            <div
+                                key={fortune.id}
+                                style={{ '--delay': index }}
+                            >
+                                <FortuneCard
+                                    fortune={fortune}
+                                    duplicateCount={duplicateCount}
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
             );
         }
@@ -279,6 +462,12 @@
             const [toast, setToast] = useState(null);
             const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error'
             const [isInitialized, setIsInitialized] = useState(false);
+            const [userName, setUserName] = useState(() => {
+                return localStorage.getItem('fortuneUserName') || '';
+            });
+            const [showNameModal, setShowNameModal] = useState(() => {
+                return !localStorage.getItem('fortuneUserNameSet');
+            });
 
             // Initialize Firebase sync on mount
             useEffect(() => {
@@ -304,7 +493,8 @@
                             const cloudFortunes = snapshot.docs.map(doc => ({
                                 id: doc.id,
                                 text: doc.data().text,
-                                date: doc.data().date
+                                date: doc.data().date,
+                                author: doc.data().author || null
                             }));
                             setFortunes(cloudFortunes);
                             setSyncStatus('synced');
@@ -353,7 +543,8 @@
                         const docRef = fortunesRef.doc(String(fortune.id));
                         batch.set(docRef, {
                             text: fortune.text,
-                            date: fortune.date
+                            date: fortune.date,
+                            author: fortune.author || null
                         });
                     });
                     
@@ -373,16 +564,36 @@
                 setToast(message);
             };
 
+            const handleNameConfirm = (name) => {
+                setUserName(name);
+                localStorage.setItem('fortuneUserName', name);
+                localStorage.setItem('fortuneUserNameSet', 'true');
+                setShowNameModal(false);
+                showToast(`Welcome, ${name}! 🎉`);
+            };
+
+            const handleNameSkip = () => {
+                localStorage.setItem('fortuneUserNameSet', 'true');
+                setShowNameModal(false);
+            };
+
             const addFortune = async (text) => {
+                // Ensure text ends with a period
+                let formattedText = text.toUpperCase().trim();
+                if (formattedText && !formattedText.match(/[.!?]$/)) {
+                    formattedText += '.';
+                }
+                
                 const newFortune = {
                     id: Date.now().toString(),
-                    text: text.toUpperCase(),
-                    date: new Date().toISOString()
+                    text: formattedText,
+                    date: new Date().toISOString(),
+                    author: userName || null
                 };
                 
                 const updatedFortunes = [...fortunes, newFortune];
                 setFortunes(updatedFortunes);
-                showToast('Fortune added successfully! 🍪');
+                showToast('Fortune added successfully!');
                 
                 // Sync to Firebase
                 try {
@@ -427,7 +638,14 @@
                                 .filter(f => !existingIds.has(String(f.id)))
                                 .map(f => ({
                                     ...f,
-                                    text: f.text.toUpperCase()
+                                    text: (() => {
+                                        let text = f.text.toUpperCase().trim();
+                                        if (text && !text.match(/[.!?]$/)) {
+                                            text += '.';
+                                        }
+                                        return text;
+                                    })(),
+                                    author: f.author || userName || null
                                 }));
 
                             if (newFortunes.length > 0) {
@@ -456,7 +674,6 @@
                         <header className="app-header">
                             <div className="header-content">
                                 <h1 className="app-title">
-                                    <span className="title-icon">🍪</span>
                                     TheFortuneLog
                                 </h1>
                                 <p className="app-subtitle">Loading...</p>
@@ -470,19 +687,20 @@
             }
 
             return (
+                <>
+                    {showNameModal && (
+                        <NameModal
+                            onConfirm={handleNameConfirm}
+                            onSkip={handleNameSkip}
+                        />
+                    )}
                 <div className="app">
                     <header className="app-header">
                         <div className="header-content">
                             <h1 className="app-title">
-                                <span className="title-icon">🍪</span>
                                 TheFortuneLog
                             </h1>
                             <p className="app-subtitle">Track your fortune cookie fortunes</p>
-                            <div className="sync-status">
-                                {syncStatus === 'synced' && <span className="sync-badge synced">☁️ Synced</span>}
-                                {syncStatus === 'loading' && <span className="sync-badge syncing">⏳ Syncing...</span>}
-                                {syncStatus === 'error' && <span className="sync-badge error">⚠️ Sync Error</span>}
-                            </div>
                         </div>
                     </header>
 
@@ -492,8 +710,6 @@
                         <div className="main-content">
                             <FortuneForm
                                 onAdd={addFortune}
-                                onExport={exportFortunes}
-                                onImport={importFortunes}
                             />
 
                             <div className="fortunes-section">
@@ -530,7 +746,6 @@
                                     fortunes={fortunes}
                                     searchTerm={searchTerm}
                                     sortBy={sortBy}
-                                    onDelete={deleteFortune}
                                 />
                             </div>
                         </div>
@@ -543,6 +758,7 @@
                         />
                     )}
                 </div>
+                </>
             );
         }
 

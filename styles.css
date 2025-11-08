@@ -709,12 +709,18 @@ body {
 
 /* Footer */
 .app-footer {
-    text-align: center;
+    background: rgba(10, 15, 26, 0.4);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(16, 185, 129, 0.1);
     padding: var(--space-xl) var(--space-lg);
     margin-top: var(--space-2xl);
-    color: var(--text-secondary);
-    font-size: 0.875rem;
     width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
 }
 
 .app-footer p {
@@ -724,31 +730,41 @@ body {
     justify-content: center;
     gap: var(--space-xs);
     flex-wrap: wrap;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    max-width: 1400px;
+    width: 100%;
 }
 
 .app-footer .copyright {
-    margin-top: var(--space-sm);
+    margin-top: var(--space-xs);
     font-size: 0.75rem;
     color: var(--text-muted);
     display: block;
 }
 
 .app-footer .heart {
-    color: rgba(16, 185, 129, 0.8);
+    background: linear-gradient(135deg, #34d399, #22c55e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     font-size: 1rem;
     display: inline-block;
     animation: heartbeat 1.5s ease-in-out infinite;
 }
 
 .app-footer .footer-link {
-    color: rgba(16, 185, 129, 0.9);
+    background: linear-gradient(135deg, #34d399, #22c55e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-decoration: none;
     transition: var(--transition);
     font-weight: 500;
 }
 
 .app-footer .footer-link:hover {
-    color: var(--primary);
+    opacity: 0.8;
     text-decoration: underline;
 }
 

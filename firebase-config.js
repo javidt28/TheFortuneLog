@@ -1,14 +1,13 @@
 // Firebase Configuration
-// Replace these values with your Firebase project credentials
-// Get them from: https://console.firebase.google.com/
+// Your Firebase project credentials
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyB1sHLkJlDqcmNqZqvh95ImGOtoQuFzfx8",
+    authDomain: "thefortunelog.firebaseapp.com",
+    projectId: "thefortunelog",
+    storageBucket: "thefortunelog.firebasestorage.app",
+    messagingSenderId: "322591122851",
+    appId: "1:322591122851:web:4afc82f4dbfed95d9be616"
 };
 
 // Initialize Firebase (only if config is valid)
@@ -27,6 +26,6 @@ if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
         console.error('Firebase initialization error:', error);
     }
 } else {
-    console.log('Firebase not configured. Using localStorage only.');
+    console.warn('Firebase not configured. Please update firebase-config.js with your Firebase credentials.');
 }
 

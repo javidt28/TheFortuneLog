@@ -90,8 +90,8 @@ service cloud.firestore {
 
 - **Anonymous Authentication**: Each browser gets a unique anonymous ID
 - **Real-time Sync**: Changes sync instantly across devices using the same browser
-- **Offline Support**: Works offline, syncs when online
-- **Local Backup**: Still saves to localStorage as backup
+- **Offline Support**: Works offline, syncs when online (Firestore handles this automatically)
+- **Cloud-Only Storage**: All data is stored in Firebase Firestore (no localStorage)
 
 ## Important Notes
 
@@ -101,10 +101,10 @@ service cloud.firestore {
 
 ## Troubleshooting
 
-- **"Firebase not configured"**: Check that you updated `firebase-config.js`
-- **"Permission denied"**: Check Firestore security rules
-- **"Sync Error"**: Check browser console for details
-- **Still using local storage**: Firebase config might be incorrect
+- **"Firebase not configured"**: Check that you updated `firebase-config.js` with your credentials
+- **"Permission denied"**: Check Firestore security rules are published correctly
+- **"Sync Error"**: Check browser console (F12) for detailed error messages
+- **App shows "Loading..." forever**: Firebase config might be incorrect or network issue
 
 ## Free Tier Limits
 

@@ -246,36 +246,124 @@ function FortuneList({ fortunes, searchTerm, sortBy, onDelete }) {
 
 // Main App Component
 function App() {
-    const [fortunes, setFortunes] = useState(() => {
-        const stored = localStorage.getItem('fortunes');
-        return stored ? JSON.parse(stored) : [];
-    });
+    const [fortunes, setFortunes] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('newest');
     const [toast, setToast] = useState(null);
+    const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error'
+    const [isInitialized, setIsInitialized] = useState(false);
 
-    // Save to localStorage whenever fortunes change
+    // Initialize Firebase sync on mount
     useEffect(() => {
-        localStorage.setItem('fortunes', JSON.stringify(fortunes));
-    }, [fortunes]);
+        let unsubscribe = null;
+
+        const initializeFirebaseSync = async () => {
+            // Check if Firebase is available and configured
+            if (typeof firebase === 'undefined' || !isFirebaseReady || !db || !auth) {
+                setSyncStatus('error');
+                showToast('Firebase not configured. Please check firebase-config.js');
+                setIsInitialized(true);
+                return;
+            }
+
+            try {
+                setSyncStatus('loading');
+                
+                // Sign in anonymously
+                const userCredential = await auth.signInAnonymously();
+                const userId = userCredential.user.uid;
+                
+                // Load fortunes from Firestore
+                const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+                
+                // Set up real-time listener for changes
+                unsubscribe = fortunesRef.onSnapshot((snapshot) => {
+                    const cloudFortunes = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        text: doc.data().text,
+                        date: doc.data().date
+                    }));
+                    setFortunes(cloudFortunes);
+                    setSyncStatus('synced');
+                    setIsInitialized(true);
+                }, (error) => {
+                    console.error('Firebase sync error:', error);
+                    setSyncStatus('error');
+                    showToast('Error syncing with Firebase');
+                    setIsInitialized(true);
+                });
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                setSyncStatus('error');
+                showToast('Failed to connect to Firebase');
+                setIsInitialized(true);
+            }
+        };
+
+        initializeFirebaseSync();
+
+        // Cleanup function
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
+    }, []);
+
+    const saveToFirebase = async (fortunesArray) => {
+        if (!db || !auth || !auth.currentUser) return;
+        
+        try {
+            const userId = auth.currentUser.uid;
+            const fortunesRef = db.collection('users').doc(userId).collection('fortunes');
+            const batch = db.batch();
+            
+            // Clear existing
+            const snapshot = await fortunesRef.get();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            
+            // Add all fortunes
+            fortunesArray.forEach(fortune => {
+                const docRef = fortunesRef.doc(String(fortune.id));
+                batch.set(docRef, {
+                    text: fortune.text,
+                    date: fortune.date
+                });
+            });
+            
+            await batch.commit();
+        } catch (error) {
+            console.error('Error saving to Firebase:', error);
+            showToast('Error saving to Firebase');
+        }
+    };
 
     const showToast = (message) => {
         setToast(message);
     };
 
-    const addFortune = (text) => {
+    const addFortune = async (text) => {
         const newFortune = {
-            id: Date.now(),
-            text: text,
+            id: Date.now().toString(),
+            text: text.toUpperCase(),
             date: new Date().toISOString()
         };
-        setFortunes(prev => [...prev, newFortune]);
+        
+        const updatedFortunes = [...fortunes, newFortune];
+        setFortunes(updatedFortunes);
         showToast('Fortune added successfully! 🍪');
+        
+        // Sync to Firebase
+        await saveToFirebase(updatedFortunes);
     };
 
-    const deleteFortune = (id) => {
-        setFortunes(prev => prev.filter(f => f.id !== id));
+    const deleteFortune = async (id) => {
+        const updatedFortunes = fortunes.filter(f => f.id !== id);
+        setFortunes(updatedFortunes);
         showToast('Fortune deleted');
+        
+        // Sync to Firebase
+        await saveToFirebase(updatedFortunes);
     };
 
     const exportFortunes = () => {
@@ -292,18 +380,27 @@ function App() {
         showToast('Fortunes exported successfully!');
     };
 
-    const importFortunes = (file) => {
+    const importFortunes = async (file) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const imported = JSON.parse(e.target.result);
                 if (Array.isArray(imported)) {
                     const existingIds = new Set(fortunes.map(f => f.id));
-                    const newFortunes = imported.filter(f => !existingIds.has(f.id));
+                    const newFortunes = imported
+                        .filter(f => !existingIds.has(String(f.id)))
+                        .map(f => ({
+                            ...f,
+                            text: f.text.toUpperCase()
+                        }));
 
                     if (newFortunes.length > 0) {
-                        setFortunes(prev => [...prev, ...newFortunes]);
+                        const updatedFortunes = [...fortunes, ...newFortunes];
+                        setFortunes(updatedFortunes);
                         showToast(`Imported ${newFortunes.length} fortune(s)!`);
+                        
+                        // Sync to Firebase
+                        await saveToFirebase(updatedFortunes);
                     } else {
                         showToast('No new fortunes to import');
                     }
@@ -317,6 +414,25 @@ function App() {
         reader.readAsText(file);
     };
 
+    if (!isInitialized) {
+        return (
+            <div className="app">
+                <header className="app-header">
+                    <div className="header-content">
+                        <h1 className="app-title">
+                            <span className="title-icon">🍪</span>
+                            TheFortuneLog
+                        </h1>
+                        <p className="app-subtitle">Loading...</p>
+                    </div>
+                </header>
+                <div className="container" style={{ textAlign: 'center', padding: '50px', color: 'white' }}>
+                    <p>Connecting to Firebase...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="app">
             <header className="app-header">
@@ -326,6 +442,11 @@ function App() {
                         TheFortuneLog
                     </h1>
                     <p className="app-subtitle">Track your fortune cookie fortunes</p>
+                    <div className="sync-status">
+                        {syncStatus === 'synced' && <span className="sync-badge synced">☁️ Synced</span>}
+                        {syncStatus === 'loading' && <span className="sync-badge syncing">⏳ Syncing...</span>}
+                        {syncStatus === 'error' && <span className="sync-badge error">⚠️ Sync Error</span>}
+                    </div>
                 </div>
             </header>
 

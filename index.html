@@ -247,67 +247,19 @@
             );
         }
 
-        // Stat Card Component
-        function StatCard({ value, label, icon }) {
-            return (
-                <div className="stat-card">
-                    <div className="stat-icon">{icon}</div>
-                    <div className="stat-content">
-                        <div className="stat-value">{value}</div>
-                        <div className="stat-label">{label}</div>
-                    </div>
-                </div>
-            );
-        }
-
-        // Stats Bar Component
-        function StatsBar({ fortunes }) {
-            const stats = useMemo(() => {
-                const now = new Date();
-                const thisMonth = now.getMonth();
-                const thisYear = now.getFullYear();
-
-                const thisMonthFortunes = fortunes.filter(f => {
-                    const date = new Date(f.date);
-                    return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
-                });
-
-                const thisYearFortunes = fortunes.filter(f => {
-                    const date = new Date(f.date);
-                    return date.getFullYear() === thisYear;
-                });
-
-                return {
-                    total: fortunes.length,
-                    thisMonth: thisMonthFortunes.length,
-                    thisYear: thisYearFortunes.length
-                };
-            }, [fortunes]);
-
-            return (
-                <div className="stats-bar">
-                    <StatCard value={stats.total} label="Total Fortunes" icon="" />
-                    <StatCard value={stats.thisMonth} label="This Month" icon="📅" />
-                    <StatCard value={stats.thisYear} label="This Year" icon="✨" />
-                </div>
-            );
-        }
-
         // Fortune Card Component
-        function FortuneCard({ fortune, duplicateCount, style }) {
+        function FortuneCard({ fortune, duplicateCount, index }) {
             const date = new Date(fortune.date);
             const formattedDate = date.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
             });
-            const formattedTime = date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
 
             return (
-                <div className={`fortune-card ${duplicateCount > 1 ? 'duplicate' : ''}`} style={style}>
+                <div 
+                    className={`fortune-card ${duplicateCount > 1 ? 'duplicate' : ''}`}
+                >
                     {duplicateCount > 1 && (
                         <div className="duplicate-badge">
                             <span className="duplicate-icon">🔄</span>
@@ -322,8 +274,6 @@
                             <div className="fortune-meta">
                                 <div className="fortune-date">
                                     <span>{formattedDate}</span>
-                                    <span className="time-separator">•</span>
-                                    <span>{formattedTime}</span>
                                 </div>
                                 {fortune.author && (
                                     <div className="fortune-author">
@@ -338,10 +288,17 @@
             );
         }
 
-        // Fortune Form Component
-        function FortuneForm({ onAdd }) {
+        // Fortune Form Component (Modal)
+        function FortuneForm({ onAdd, onClose }) {
             const [text, setText] = useState('');
             const [isSubmitting, setIsSubmitting] = useState(false);
+            const textareaRef = React.useRef(null);
+
+            React.useEffect(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                }
+            }, []);
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -351,105 +308,57 @@
                 setIsSubmitting(true);
                 onAdd(trimmedText);
                 setText('');
-                setTimeout(() => setIsSubmitting(false), 300);
+                setTimeout(() => {
+                    setIsSubmitting(false);
+                    onClose();
+                }, 300);
+            };
+
+            const handleKeyDown = (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    handleSubmit(e);
+                }
+                if (e.key === 'Escape') {
+                    onClose();
+                }
             };
 
             return (
-                <div className="add-fortune-section">
-                    <div className="section-title">
-                        <h2>Add New Fortune</h2>
-                        <p className="section-subtitle">Capture your fortune cookie wisdom</p>
-                    </div>
-                    <form onSubmit={handleSubmit} className="fortune-form">
-                        <div className="textarea-wrapper">
+                <div className="add-fortune-modal" onClick={onClose}>
+                    <div className="add-fortune-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Add Fortune</h2>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="fortune-form">
                             <textarea
+                                ref={textareaRef}
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
+                                onKeyDown={handleKeyDown}
                                 placeholder="Enter your fortune cookie message..."
                                 rows="4"
                                 className="fortune-textarea"
                                 required
                             />
-                            <div className="textarea-footer">
-                                <span className="char-count">{text.length} characters</span>
+                            <div className="form-footer">
+                                <button 
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={onClose}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className={`btn btn-primary ${isSubmitting ? 'submitting' : ''}`}
+                                    disabled={isSubmitting || !text.trim()}
+                                >
+                                    {isSubmitting ? 'Adding...' : 'Add Fortune'}
+                                </button>
                             </div>
-                        </div>
-                        <div className="form-actions">
-                            <button 
-                                type="submit" 
-                                className={`btn btn-primary ${isSubmitting ? 'submitting' : ''}`}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? 'Adding...' : '🥠 Add Fortune'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            );
-        }
-
-        // Fortune List Component
-        function FortuneList({ fortunes, searchTerm, sortBy }) {
-            const filteredAndSorted = useMemo(() => {
-                let filtered = fortunes.filter(fortune =>
-                    fortune.text.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-
-                switch (sortBy) {
-                    case 'newest':
-                        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-                        break;
-                    case 'oldest':
-                        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-                        break;
-                    case 'alphabetical':
-                        filtered.sort((a, b) => a.text.localeCompare(b.text));
-                        break;
-                }
-
-                return filtered;
-            }, [fortunes, searchTerm, sortBy]);
-
-            // Calculate duplicate counts for each fortune text
-            const duplicateCounts = useMemo(() => {
-                const counts = {};
-                fortunes.forEach(fortune => {
-                    const text = fortune.text.toLowerCase().trim();
-                    counts[text] = (counts[text] || 0) + 1;
-                });
-                return counts;
-            }, [fortunes]);
-
-            if (filteredAndSorted.length === 0) {
-                return (
-                    <div className="empty-state">
-                        <div className="empty-icon"></div>
-                        <p className="empty-text">
-                            {searchTerm 
-                                ? `No fortunes found matching "${searchTerm}"`
-                                : "No fortunes yet. Add your first one above!"
-                            }
-                        </p>
+                        </form>
                     </div>
-                );
-            }
-
-            return (
-                <div className="fortunes-list">
-                    {filteredAndSorted.map((fortune, index) => {
-                        const duplicateCount = duplicateCounts[fortune.text.toLowerCase().trim()] || 1;
-                        return (
-                            <div
-                                key={fortune.id}
-                                style={{ '--delay': index }}
-                            >
-                                <FortuneCard
-                                    fortune={fortune}
-                                    duplicateCount={duplicateCount}
-                                />
-                            </div>
-                        );
-                    })}
                 </div>
             );
         }
@@ -457,16 +366,12 @@
         // Main App Component
         function App() {
             const [fortunes, setFortunes] = useState([]);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [sortBy, setSortBy] = useState('newest');
             const [toast, setToast] = useState(null);
-            const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error'
+            const [showNameModal, setShowNameModal] = useState(false);
+            const [showAddModal, setShowAddModal] = useState(false);
             const [isInitialized, setIsInitialized] = useState(false);
             const [userName, setUserName] = useState(() => {
                 return localStorage.getItem('fortuneUserName') || '';
-            });
-            const [showNameModal, setShowNameModal] = useState(() => {
-                return !localStorage.getItem('fortuneUserNameSet');
             });
 
             // Initialize Firebase sync on mount
@@ -476,15 +381,12 @@
                 const initializeFirebaseSync = async () => {
                     // Check if Firebase is available and configured
                     if (typeof firebase === 'undefined' || !isFirebaseReady || !db) {
-                        setSyncStatus('error');
                         showToast('Firebase not configured. Please check firebase-config.js');
                         setIsInitialized(true);
                         return;
                     }
 
                     try {
-                        setSyncStatus('loading');
-                        
                         // Use shared collection for all fortunes (no user-specific path)
                         const fortunesRef = db.collection('fortunes');
                         
@@ -497,17 +399,14 @@
                                 author: doc.data().author || null
                             }));
                             setFortunes(cloudFortunes);
-                            setSyncStatus('synced');
                             setIsInitialized(true);
                         }, (error) => {
                             console.error('Firebase sync error:', error);
-                            setSyncStatus('error');
                             showToast('Error syncing with Firebase');
                             setIsInitialized(true);
                         });
                     } catch (error) {
                         console.error('Firebase initialization error:', error);
-                        setSyncStatus('error');
                         showToast('Failed to connect to Firebase');
                         setIsInitialized(true);
                     }
@@ -686,6 +585,21 @@
                 );
             }
 
+            const getFortuneOfTheDay = () => {
+                if (fortunes.length === 0) return null;
+                
+                // Use today's date as a seed for consistent selection
+                const today = new Date();
+                const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+                const seed = dateString.split('-').join(''); // Convert to number
+                
+                // Use seed to select a fortune (deterministic based on date)
+                const index = parseInt(seed) % fortunes.length;
+                return fortunes[index];
+            };
+
+            const fortuneOfTheDay = getFortuneOfTheDay();
+
             return (
                 <>
                     {showNameModal && (
@@ -694,62 +608,69 @@
                             onSkip={handleNameSkip}
                         />
                     )}
+                    {showAddModal && (
+                        <FortuneForm
+                            onAdd={addFortune}
+                            onClose={() => setShowAddModal(false)}
+                        />
+                    )}
                 <div className="app">
                     <header className="app-header">
                         <div className="header-content">
-                            <h1 className="app-title">
-                                TheFortuneLog
-                            </h1>
-                            <p className="app-subtitle">Track your fortune cookie fortunes</p>
+                            <div>
+                                <h1 className="app-title">TheFortuneLog</h1>
+                            </div>
                         </div>
                     </header>
 
-                    <div className="container">
-                        <StatsBar fortunes={fortunes} />
-
-                        <div className="main-content">
-                            <FortuneForm
-                                onAdd={addFortune}
-                            />
-
-                            <div className="fortunes-section">
-                                <div className="section-header">
-                                    <div className="section-title">
-                                        <h2>Your Fortunes</h2>
-                                        <p className="section-subtitle">{fortunes.length} fortune{fortunes.length !== 1 ? 's' : ''} collected</p>
-                                    </div>
-                                    <div className="controls">
-                                        <div className="search-wrapper">
-                                            <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
-                                            <input
-                                                type="text"
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                placeholder="Search fortunes..."
-                                                className="search-input"
-                                            />
-                                        </div>
-                                        <select
-                                            value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value)}
-                                            className="sort-select"
-                                        >
-                                            <option value="newest">Newest First</option>
-                                            <option value="oldest">Oldest First</option>
-                                            <option value="alphabetical">A-Z</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <FortuneList
-                                    fortunes={fortunes}
-                                    searchTerm={searchTerm}
-                                    sortBy={sortBy}
-                                />
+                    <div className="main-content">
+                        {fortuneOfTheDay && (
+                            <div className="fortune-of-the-day">
+                                <div className="fortune-of-the-day-label">Fortune of the Day</div>
+                                <div className="fortune-of-the-day-text">{fortuneOfTheDay.text}</div>
                             </div>
+                        )}
+                        
+                        <div className="fortunes-header">
+                            <h2>Fortunes</h2>
+                            <div className="fortunes-count">{fortunes.length} fortune{fortunes.length !== 1 ? 's' : ''}</div>
                         </div>
+
+                        {fortunes.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">✨</div>
+                                <div className="empty-text">No fortunes yet. Add the first one!</div>
+                            </div>
+                        ) : (
+                            <div className="fortunes-grid">
+                                {fortunes.map((fortune, index) => {
+                                    const duplicateCounts = {};
+                                    fortunes.forEach(f => {
+                                        const text = f.text.toLowerCase().trim();
+                                        duplicateCounts[text] = (duplicateCounts[text] || 0) + 1;
+                                    });
+                                    const duplicateCount = duplicateCounts[fortune.text.toLowerCase().trim()] || 1;
+                                    return (
+                                        <FortuneCard
+                                            key={fortune.id}
+                                            fortune={fortune}
+                                            duplicateCount={duplicateCount}
+                                            index={index}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
+
+                    {/* Floating Add Button */}
+                    <button 
+                        className="add-button"
+                        onClick={() => setShowAddModal(true)}
+                        aria-label="Add Fortune"
+                    >
+                        <span className="add-button-icon">+</span>
+                    </button>
 
                     {toast && (
                         <Toast
